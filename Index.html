@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Henry Agenten-Farm MVP (Kostenlos)</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #121212; color: #f5f5f7; padding: 20px; margin: 0; }
+        .card { background: #1c1c1e; padding: 20px; border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); margin-bottom: 15px; }
+        h1 { font-size: 1.5rem; margin-top: 0; color: #30d158; } /* Grün für Kostenlos */
+        input, textarea, select { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #3a3a3c; background: #2c2c2e; color: #fff; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 15px; background: #30d158; border: none; border-radius: 8px; color: white; font-weight: bold; font-size: 1rem; cursor: pointer; margin-top: 10px; }
+        button.mic { background: #0a84ff; }
+        #output { white-space: pre-wrap; background: #2c2c2e; padding: 15px; border-radius: 8px; min-height: 100px; margin-top: 15px; border-left: 4px solid #30d158; font-size: 0.95rem; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>🤖 Henry-CEO (Gratis MVP)</h1>
+        
+        <label>Anbieter auswählen:</label>
+        <select id="provider">
+            <option value="openrouter">OpenRouter (Hat Free Models!)</option>
+            <option value="deepseek">DeepSeek (Nutzt Startguthaben)</option>
+        </select>
+
+        <label>Dein Gratis API-Key:</label>
+        <input type="password" id="apiKey" placeholder="Hier Key einfügen...">
+        
+        <label>Dein Befehl an die Farm:</label>
+        <textarea id="taskInput" rows="4" placeholder="Spreche oder schreibe etwas..."></textarea>
+        
+        <button class="mic" id="micBtn">🎙️ Per Sprache eingeben</button>
+        <button id="sendBtn">🚀 Befehl senden</button>
+    </div>
+
+    <div class="card">
+        <h3>📋 Agenten-Feedback:</h3>
+        <div id="output">Bereit. Gib mir einen Befehl.</div>
+    </div>
+
+    <script>
+        if(localStorage.getItem('henry_free_key')) {
+            document.getElementById('apiKey').value = localStorage.getItem('henry_free_key');
+        }
+
+        const micBtn = document.getElementById('micBtn');
+        const taskInput = document.getElementById('taskInput');
+        
+        if ('webkitSpeechRecognition' in window) {
+            const recognition = new webkitSpeechRecognition();
+            recognition.lang = 'de-DE';
+            recognition.interimResults = false;
+
+            micBtn.addEventListener('click', () => {
+                recognition.start();
+                micBtn.innerText = "⏳ Ich höre zu...";
+                micBtn.style.background = "#ff9f0a";
+            });
+
+            recognition.onresult = (event) => {
+                taskInput.value = event.results.transcript;
+                micBtn.innerText = "🎙️ Per Sprache eingeben";
+                micBtn.style.background = "#0a84ff";
+            };
+            recognition.onerror = () => { micBtn.innerText = "🎙️ Fehler! Erneut versuchen"; micBtn.style.background = "#0a84ff"; };
+        } else {
+            micBtn.style.display = 'none'; 
+        }
+
+        document.getElementById('sendBtn').addEventListener('click', async () => {
+            const provider = document.getElementById('provider').value;
+            const key = document.getElementById('apiKey').value;
+            const prompt = taskInput.value;
+            const output = document.getElementById('output');
+
+            if(!key || !prompt) { alert("Bitte Key und Befehl eingeben!"); return; }
+            localStorage.setItem('henry_free_key', key);
+            output.innerText = "🤖 CEO simuliert die Farm-Antwort...";
+
+            const systemPrompt = `Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den eingehenden Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen/Dokumente) darauf reagieren würden. Antworte strukturiert im Namen des [CEO-Agent], [CFO-Agent], [COO-Agent] und [CIO-Agent]. Halte es kurz und prägnant.`;
+
+            let url = '';
+            let model = '';
+
+            if (provider === 'openrouter') {
+                url = 'https://openrouter.ai';
+                model = 'meta-llama/llama-3-8b-instruct:free'; // Komplett kostenloses Modell bei OpenRouter
+            } else if (provider === 'deepseek') {
+                url = 'https://deepseek.com';
+                model = 'deepseek-chat';
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${key}`
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: prompt }
+                        ]
+                    })
+                });
+
+                const data = await response.json();
+                output.innerText = data.choices[0].message.content;
+            } catch (error) {
+                output.innerText = "🚨 Fehler: " + error.message;
+            }
+        });
+    </script>
+</body>
+</html>
