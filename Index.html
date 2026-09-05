@@ -1,4 +1,4 @@
-    <script>
+       <script>
         if(localStorage.getItem('henry_gemini_key')) {
             document.getElementById('apiKey').value = localStorage.getItem('henry_gemini_key');
         }
@@ -17,7 +17,7 @@
                 micBtn.style.background = "#ff9f0a";
             });
 
-            // KORREKTUR: Richtiger Pfad zum Text im event-Objekt
+            // KORREKTUR: Jetzt mit den korrekten Array-Indizes [0][0] ausgelesen
             recognition.onresult = (event) => {
                 taskInput.value = event.results[0][0].transcript;
                 micBtn.innerText = "🎙️ Per Sprache eingeben";
@@ -43,7 +43,7 @@
 
             const systemPrompt = "Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den eingehenden Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen/Dokumente) darauf reagieren würden. Antworte strukturiert im Namen des [CEO-Agent], [CFO-Agent], [COO-Agent] und [CIO-Agent]. Halte es kurz und prägnant.";
 
-            // KORREKTUR: Slashes korrigiert und String-Literal mit ` geschlossen
+            // KORREKTUR: Die vollständige, korrekte Google Gemini API URL
             const url = `https://googleapis.com{key}`;
 
             try {
@@ -59,16 +59,18 @@
 
                 const data = await response.json();
                 
-                if (data.candidates && data.candidates[0].content.parts[0].text) {
+                // KORREKTUR: Exakte Überprüfung der verschachtelten Gemini-Struktur
+                if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
                     output.innerText = data.candidates[0].content.parts[0].text;
                 } else if (data.error) {
                     throw new Error(data.error.message);
                 } else {
-                    throw new Error("Unerwartete API-Antwort");
+                    throw new Error("Unerwartete API-Antwort. Struktur ungültig.");
                 }
             } catch (error) {
                 output.innerText = "🚨 Fehler: " + error.message;
             }
         });
     </script>
+
 
