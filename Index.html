@@ -14,11 +14,17 @@
         button { width: 100%; padding: 15px; background: #ff9f0a; border: none; border-radius: 8px; color: black; font-weight: bold; font-size: 1rem; cursor: pointer; margin-top: 10px; }
         #output { white-space: pre-wrap; background: #2c2c2e; padding: 15px; border-radius: 8px; min-height: 100px; margin-top: 15px; border-left: 4px solid #ff9f0a; font-size: 0.95rem; line-height: 1.4; }
     </style>
+
+    <!-- ADLER-LÖSUNG: Laden des offiziellen Google AI Web-Bundles zur CORS-Umgehung -->
+    <script type="module">
+        import { GoogleGenerativeAI } from "https://esm.run";
+        window.GoogleGenerativeAI = GoogleGenerativeAI;
+    </script>
 </head>
 <body>
 
     <!-- Versionsanzeige -->
-    <div class="revision-tag">REV V1.2 (dev)</div>
+    <div class="revision-tag">REV V1.3 (dev)</div>
 
     <div class="card">
         <h1>🤖 Henry-CEO MVP (Dev)</h1>
@@ -42,7 +48,7 @@
             document.getElementById('apiKey').value = localStorage.getItem('henry_gemini_key');
         }
 
-        function sendeBefehl() {
+        async function sendeBefehl() {
             var key = document.getElementById('apiKey').value.trim();
             var prompt = document.getElementById('taskInput').value.trim();
             var output = document.getElementById('output');
@@ -53,62 +59,35 @@
             }
             
             localStorage.setItem('henry_gemini_key', key);
-            output.innerText = "⏳ CEO leitet den Befehl an die Abteilungen weiter...";
+            output.innerText = "⏳ Initialisiere sichere Google-Verbindung...";
 
-            // ADLER-KORREKTUR: Wechsel auf die stabile v1 Route für gemini-2.5 Modelle
-            var url = "https://googleapis.com" + key;
+            // Prüfen, ob das Google SDK korrekt geladen wurde
+            if (!window.GoogleGenerativeAI) {
+                output.innerText = "❌ Fehler: Das Google-Sicherheits-SDK konnte nicht geladen werden. Bitte prüfe deine Internetverbindung.";
+                return;
+            }
 
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", url, true);
-            xhr.setRequestHeader("Content-Type", "application/json");
+            try {
+                // Verbindung über Googles offizielle Schnittstelle aufbauen
+                const genAI = new window.GoogleGenerativeAI(key);
+                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState === 4) {
-                    // Falls die Antwort komplett leer ist, fangen wir das hier sofort ab
-                    if (!xhr.responseText || xhr.responseText.trim() === "") {
-                        output.innerText = "❌ Leere Antwort von Google erhalten.\nHTTP-Statuscode: " + xhr.status;
-                        return;
-                    }
+                var systemPrompt = "Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den eingehenden Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen/Dokumente) darauf reagieren würden. Antworte strukturiert im Namen des [CEO-Agent], [CFO-Agent], [COO-Agent] und [CIO-Agent]. Halte es kurz und prägnant.";
 
-                    var data;
-                    try {
-                        data = JSON.parse(xhr.responseText);
-                    } catch (e) {
-                        output.innerText = "🚨 Server-Antwort ist kein gültiges JSON.\nHTTP-Status: " + xhr.status + "\nInhalt:\n" + xhr.responseText;
-                        return;
-                    }
+                output.innerText = "⏳ Verbindung steht. CEO analysiert die Abteilungen...";
+                
+                const result = await model.generateContent(systemPrompt + "\n\nHenrys Befehl: " + prompt);
+                const response = await result.response;
+                
+                // Antwort direkt ausgeben
+                output.innerText = response.text();
 
-                    if (xhr.status === 200) {
-                        var textResponse = "";
-                        if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-                            textResponse = data.candidates[0].content.parts[0].text;
-                        }
-                        
-                        if (textResponse) {
-                            output.innerText = textResponse;
-                        } else {
-                            output.innerText = "⚠️ Text in JSON-Struktur nicht gefunden. Rohdaten:\n" + JSON.stringify(data, null, 2);
-                        }
-                    } else {
-                        if (data && data.error && data.error.message) {
-                            output.innerText = "❌ Google API Fehler (" + xhr.status + "):\n" + data.error.message;
-                        } else {
-                            output.innerText = "❌ HTTP-Fehler " + xhr.status + ":\n" + xhr.responseText;
-                        }
-                    }
-                }
-            };
-
-            var systemPrompt = "Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den eingehenden Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen/Dokumente) darauf reagieren würden. Antworte strukturiert im Namen des [CEO-Agent], [CFO-Agent], [COO-Agent] und [CIO-Agent]. Halte es kurz und prägnant.";
-
-            var payload = JSON.stringify({
-                contents: [{
-                    parts: [{ text: systemPrompt + "\n\nHenrys Befehl: " + prompt }]
-                }]
-            });
-
-            xhr.send(payload);
+            } catch (error) {
+                output.innerText = "🚨 Fehler im Google SDK:\n" + error.message;
+            }
         }
     </script>
 </body>
+</html>
+
 </html>
