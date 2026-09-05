@@ -17,7 +17,7 @@
 <body>
 
     <!-- Versionsanzeige oben rechts -->
-    <div class="revision-tag">REV V1.4 (dev)</div>
+    <div class="revision-tag">REV V1.5 (dev)</div>
 
     <div class="card">
         <h1>🤖 Henry-CEO MVP (Dev)</h1>
@@ -52,28 +52,20 @@
             }
             
             localStorage.setItem('henry_gemini_key', key);
-            output.innerText = "⏳ CEO tunnelt die CORS-Sperre deines Browsers...";
+            output.innerText = "⏳ CEO sendet verschlüsselten Befehl (AdBlock-Bypass)...";
 
-            // DIE ENTSCHEIDENDE ÄNDERUNG: Wir schalten einen freien CORS-Proxy vor die Google-URL
-            var googleUrl = "https://googleapis.com" + key;
-            var url = "https://herokuapp.com" + googleUrl;
+            // DIE ENTSCHEIDENDE ÄNDERUNG: Die Google-Schnittstelle ist komplett maskiert (Base64), damit AdBlocker sie ignorieren
+            var maskiert = "aHR0cHM6Ly9nZW5lcmF0aXZlbGFuZ3VhZ2UuZ29vZ2xlYXBpcy5jb20vdjEvbW9kZWxzL2dlbWluaS0yLjUtZmxhc2g6Z2VuZXJhdGVDb250ZW50P2tleT0=";
+            var url = atob(maskiert) + key;
 
             var xhr = new XMLHttpRequest();
             xhr.open("POST", url, true);
             xhr.setRequestHeader("Content-Type", "application/json");
-            
-            // Wichtig für den offenen Proxy
-            xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
 
             xhr.onreadystatechange = function () {
                 if (xhr.readyState === 4) {
-                    if (xhr.status === 403) {
-                        output.innerText = "ℹ️ Bitte klicke einmalig auf diesen Link, um den temporären CORS-Server für deinen Browser freizuschalten:\n\nhttps://herokuapp.comcorsdemo\n\nKlicke dort auf den großen Button 'Request temporary access' und versuche es hier danach sofort erneut.";
-                        return;
-                    }
-
                     if (!xhr.responseText || xhr.responseText.trim() === "") {
-                        output.innerText = "❌ Leere Antwort erhalten.\nHTTP-Statuscode: " + xhr.status;
+                        output.innerText = "❌ Verbindung blockiert (Statuscode: " + xhr.status + ").\n\nTipp: Bitte schalte uBlock Origin, AdBlocker oder den Brave-Schild auf dieser Seite komplett aus.";
                         return;
                     }
 
@@ -81,7 +73,7 @@
                     try {
                         data = JSON.parse(xhr.responseText);
                     } catch (e) {
-                        output.innerText = "🚨 Antwort ist kein gültiges JSON.\nHTTP-Status: " + xhr.status + "\nInhalt:\n" + xhr.responseText;
+                        output.innerText = "🚨 Antwort-Fehler.\nHTTP-Status: " + xhr.status + "\nInhalt:\n" + xhr.responseText;
                         return;
                     }
 
@@ -94,7 +86,7 @@
                         if (textResponse) {
                             output.innerText = textResponse;
                         } else {
-                            output.innerText = "⚠️ Text nicht gefunden. Rohdaten:\n" + JSON.stringify(data, null, 2);
+                            output.innerText = "⚠️ Text nicht lesbar. Struktur:\n" + JSON.stringify(data, null, 2);
                         }
                     } else {
                         if (data && data.error && data.error.message) {
