@@ -75,7 +75,7 @@
             const systemPrompt = "Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den eingehenden Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen/Dokumente) darauf reagieren würden. Antworte strukturiert im Namen des [CEO-Agent], [CFO-Agent], [COO-Agent] und [CIO-Agent]. Halte es kurz und prägnant.";
 
             // Google Gemini API Endpoint für das kostenlose gemini-2.5-flash Modell
-            const url = `https://googleapis.com{key}`;
+            const url = `https://generativelanguage.googleapis.com\v1beta\models\gemini-2.5-flash:generateContent?key=${key};
 
             try {
                 const response = await fetch(url, {
