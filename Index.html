@@ -11,13 +11,16 @@
         h1 { font-size: 1.5rem; margin-top: 0; color: #ff9f0a; }
         input, textarea { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #3a3a3c; background: #2c2c2e; color: #fff; box-sizing: border-box; font-size: 16px; }
         button { width: 100%; padding: 15px; background: #ff9f0a; border: none; border-radius: 8px; color: black; font-weight: bold; font-size: 1rem; cursor: pointer; margin-top: 10px; }
+        button.mic { background: #0a84ff; color: white; margin-bottom: 5px; }
         #output { white-space: pre-wrap; background: #2c2c2e; padding: 15px; border-radius: 8px; min-height: 100px; margin-top: 15px; border-left: 4px solid #ff9f0a; font-size: 0.95rem; line-height: 1.4; }
+        /* Styling für die formatierten Agenten-Namen */
+        #output strong { color: #ff9f0a; font-weight: 600; }
     </style>
 </head>
 <body>
 
     <!-- Versionsanzeige oben rechts -->
-    <div class="revision-tag">REV V1.6 (dev)</div>
+    <div class="revision-tag">REV V1.7 (dev)</div>
 
     <div class="card">
         <h1>🤖 Henry-CEO MVP (Dev)</h1>
@@ -26,8 +29,9 @@
         <input type="password" id="apiKey" placeholder="AIzaSy...">
         
         <label>Dein Befehl an die Farm:</label>
-        <textarea id="taskInput" rows="4" placeholder="Schreibe etwas..."></textarea>
+        <textarea id="taskInput" rows="4" placeholder="Spreche oder schreibe etwas..."></textarea>
         
+        <button class="mic" id="micBtn">🎙️ Per Sprache eingeben</button>
         <button id="sendBtn" onclick="sendeBefehl()">🚀 Befehl senden</button>
     </div>
 
@@ -41,9 +45,46 @@
             document.getElementById('apiKey').value = localStorage.getItem('henry_gemini_key');
         }
 
+        // INTEGRATION: Spracherkennung reaktiviert
+        const micBtn = document.getElementById('micBtn');
+        const taskInput = document.getElementById('taskInput');
+        
+        if ('webkitSpeechRecognition' in window) {
+            const recognition = new webkitSpeechRecognition();
+            recognition.lang = 'de-DE';
+            recognition.interimResults = false;
+
+            micBtn.addEventListener('click', () => {
+                recognition.start();
+                micBtn.innerText = "⏳ Ich höre zu...";
+                micBtn.style.background = "#ff9f0a";
+                micBtn.style.color = "black";
+            });
+
+            recognition.onresult = (event) => {
+                taskInput.value = event.results[0][0].transcript;
+                micBtn.innerText = "🎙️ Per Sprache eingeben";
+                micBtn.style.background = "#0a84ff";
+                micBtn.style.color = "white";
+            };
+            
+            recognition.onerror = () => { 
+                micBtn.innerText = "🎙️ Fehler bei Erkennung"; 
+                micBtn.style.background = "#0a84ff"; 
+                micBtn.style.color = "white";
+            };
+        } else {
+            micBtn.style.display = 'none'; 
+        }
+
+        // Einfacher Parser für die Markdown-Sterne von Gemini
+        function parseMarkdown(text) {
+            return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        }
+
         function sendeBefehl() {
             var key = document.getElementById('apiKey').value.trim();
-            var prompt = document.getElementById('taskInput').value.trim();
+            var prompt = taskInput.value.trim();
             var output = document.getElementById('output');
 
             if(!key || !prompt) { 
@@ -54,7 +95,6 @@
             localStorage.setItem('henry_gemini_key', key);
             output.innerText = "⏳ CEO sendet Befehl an Gemini 3.6...";
 
-            // ADLER-KORREKTUR: Neue Base64-Maske, die auf 'gemini-3.6-flash' verweist
             var maskiert = "aHR0cHM6Ly9nZW5lcmF0aXZlbGFuZ3VhZ2UuZ29vZ2xlYXBpcy5jb20vdjEvbW9kZWxzL2dlbWluaS0zLjYtZmxhc2g6Z2VuZXJhdGVDb250ZW50P2tleT0=";
             var url = atob(maskiert) + key;
 
@@ -79,12 +119,13 @@
 
                     if (xhr.status === 200) {
                         var textResponse = "";
-                        if (data && data.candidates && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+                        if (data && data.candidates && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0].text) {
                             textResponse = data.candidates[0].content.parts[0].text;
                         }
                         
                         if (textResponse) {
-                            output.innerText = textResponse;
+                            // ÄNDERUNG: Nutzt innerHTML statt innerText, um Fettdruck anzuzeigen
+                            output.innerHTML = parseMarkdown(textResponse);
                         } else {
                             output.innerText = "⚠️ Text nicht lesbar. Struktur:\n" + JSON.stringify(data, null, 2);
                         }
