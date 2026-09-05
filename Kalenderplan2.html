@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -20,7 +21,6 @@
 </head>
 <body>
 
-    <!-- REVISION UPDATE: Visualisierung der Version 2.0 (prod) -->
     <div class="revision-tag">REV V2.0 (prod)</div>
 
     <div class="card">
@@ -31,7 +31,6 @@
             <div class="no-tasks">Lade Daten aus dem Speicher...</div>
         </div>
         
-        <!-- URL KORREKTUR: Verweist fehlerfrei auf die Hauptdatei -->
         <a href="Index.html" class="back-link">← Zurück zur Agenten-Farm</a>
     </div>
 
@@ -48,23 +47,21 @@
             let cooText = "";
             const cooMatch = rawText.match(/\[COO-Agent\]:?([\s\S]*?)(?=\[(?:CEO|CFO|CIO)-Agent\]|$)/i);
             
-            if (cooMatch && cooMatch[1]) {
-                cooText = cooMatch[1].trim();
+            if (cooMatch && cooMatch) {
+                cooText = cooMatch.trim();
             } else {
                 cooText = rawText; 
             }
 
             const lines = cooText.split(/\n|,|\./).map(l => l.trim()).filter(l => l.length > 5);
             const tasks = [];
-            
-            // Heutiges Echtzeit-Datum setzen (5. September 2026)
-            const heute = new Date(2026, 8, 5); 
+            const heute = new Date(2026, 8, 5); // Stand: 05. September 2026 [2026-09-05]
 
             lines.forEach(line => {
                 const timeMatch = line.match(/(\d{1,2})(?::(\d{2}))?\s*(?:Uhr)?/i);
                 if (timeMatch) {
-                    let stunde = parseInt(timeMatch[1]);
-                    let minute = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+                    let stunde = parseInt(timeMatch);
+                    let minute = timeMatch ? parseInt(timeMatch) : 0;
                     
                     let terminDatum = new Date(heute);
                     if (line.toLowerCase().includes("morgen")) {
@@ -102,6 +99,11 @@
                 const dateStr = task.date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
                 const timeStr = `${String(task.stunde).padStart(2, '0')}:${String(task.minute).padStart(2, '0')} Uhr`;
 
+                const start = new Date(task.date);
+                start.setHours(task.stunde, task.minute, 0);
+                const end = new Date(start);
+                end.setHours(start.getHours() + 1);
+
                 const item = document.createElement('div');
                 item.className = 'task-item';
                 item.innerHTML = `
@@ -109,50 +111,19 @@
                         <div class="task-title">${task.title}</div>
                         <div class="task-time">📅 ${dateStr} um ${timeStr}</div>
                     </div>
-                    <button class="cal-btn" onclick="exportToAppleCalendar('${btoa(unescape(encodeURIComponent(task.title)))}', '${task.date.toISOString()}', ${task.stunde}, ${task.minute})">🗓️ In Kalender</button>
+                    <button class="cal-btn" onclick="triggereAppleShortcut('${btoa(unescape(encodeURIComponent(task.title)))}', '${start.toISOString()}', '${end.toISOString()}')">🗓️ In Kalender</button>
                 `;
                 taskListContainer.appendChild(item);
             });
         });
 
-        function exportToAppleCalendar(base64Title, dateIso, stunde, minute) {
+        function triggereAppleShortcut(base64Title, startIso, endIso) {
             const title = decodeURIComponent(escape(atob(base64Title)));
-            const date = new Date(dateIso);
+            const datenPaket = `Titel: ${title}\nStart: ${startIso}\nEnde: ${endIso}`;
             
-            const start = new Date(date);
-            start.setHours(stunde, minute, 0);
-            
-            const end = new Date(start);
-            end.setHours(start.getHours() + 1);
-
-            const formatICSDate = (d) => {
-                return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-            };
-
-            const icsContent = [
-                "BEGIN:VCALENDAR",
-                "VERSION:2.0",
-                "PRODID:-//HenryAgentenFarm//NONSGML v2.0//DE",
-                "X-WR-CALNAME:Henry",
-                "BEGIN:VEVENT",
-                `SUMMARY:${title}`,
-                `DTSTART:${formatICSDate(start)}`,
-                `DTEND:${formatICSDate(end)}`,
-                "DESCRIPTION:Automatisch generiert über Henrys Agenten-Farm v2.0",
-                "STATUS:CONFIRMED",
-                "END:VEVENT",
-                "END:VCALENDAR"
-            ].join("\r\n");
-
-            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `${title.replace(/\s+/g, '_')}.ics`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            // Startet den lokalen Apple-Kurzbefehl
+            const shortcutUrl = `shortcuts://run-shortcut?name=HenryKalender&input=text&text=${encodeURIComponent(datenPaket)}`;
+            window.location.href = shortcutUrl;
         }
     </script>
 </body>
