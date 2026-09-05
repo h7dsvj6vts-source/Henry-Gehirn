@@ -17,7 +17,7 @@
 <body>
 
     <!-- Versionsanzeige oben rechts -->
-    <div class="revision-tag">REV V1.5 (dev)</div>
+    <div class="revision-tag">REV V1.6 (dev)</div>
 
     <div class="card">
         <h1>🤖 Henry-CEO MVP (Dev)</h1>
@@ -52,10 +52,10 @@
             }
             
             localStorage.setItem('henry_gemini_key', key);
-            output.innerText = "⏳ CEO sendet verschlüsselten Befehl (AdBlock-Bypass)...";
+            output.innerText = "⏳ CEO sendet Befehl an Gemini 3.6...";
 
-            // DIE ENTSCHEIDENDE ÄNDERUNG: Die Google-Schnittstelle ist komplett maskiert (Base64), damit AdBlocker sie ignorieren
-            var maskiert = "aHR0cHM6Ly9nZW5lcmF0aXZlbGFuZ3VhZ2UuZ29vZ2xlYXBpcy5jb20vdjEvbW9kZWxzL2dlbWluaS0yLjUtZmxhc2g6Z2VuZXJhdGVDb250ZW50P2tleT0=";
+            // ADLER-KORREKTUR: Neue Base64-Maske, die auf 'gemini-3.6-flash' verweist
+            var maskiert = "aHR0cHM6Ly9nZW5lcmF0aXZlbGFuZ3VhZ2UuZ29vZ2xlYXBpcy5jb20vdjEvbW9kZWxzL2dlbWluaS0zLjYtZmxhc2g6Z2VuZXJhdGVDb250ZW50P2tleT0=";
             var url = atob(maskiert) + key;
 
             var xhr = new XMLHttpRequest();
@@ -65,7 +65,7 @@
             xhr.onreadystatechange = function () {
                 if (xhr.readyState === 4) {
                     if (!xhr.responseText || xhr.responseText.trim() === "") {
-                        output.innerText = "❌ Verbindung blockiert (Statuscode: " + xhr.status + ").\n\nTipp: Bitte schalte uBlock Origin, AdBlocker oder den Brave-Schild auf dieser Seite komplett aus.";
+                        output.innerText = "❌ Verbindung blockiert (Statuscode: " + xhr.status + ").";
                         return;
                     }
 
