@@ -1,4 +1,4 @@
-     <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
@@ -23,7 +23,6 @@
     </div>
 
     <script>
-        // Key automatisch laden
         if(localStorage.getItem('henry_key')) {
             document.getElementById('apiKey').value = localStorage.getItem('henry_key');
         }
@@ -58,22 +57,18 @@
 
                 const data = await response.json();
 
-                // Extrem sicheres Auslesen der Daten, um Abstürze zu verhindern
+                // ADLER-KORREKTUR: Robuster Fallback, der die echte Struktur garantiert ausliest
                 if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
                     output.innerText = data.candidates[0].content.parts[0].text;
-                } else if (data && data.error) {
-                    output.innerText = "❌ API-Fehler von Google:\n" + JSON.stringify(data.error, null, 2);
                 } else {
-                    output.innerText = "❌ Unbekannte Struktur empfangen:\n" + JSON.stringify(data, null, 2);
+                    // Falls Google einen Fehler sendet, wird das gesamte JSON roh ausgegeben, damit du siehst was los ist
+                    output.innerText = "Antwort erhalten, aber Struktur weicht ab:\n" + JSON.stringify(data, null, 2);
                 }
 
             } catch (error) {
-                output.innerText = "🚨 Netzwerk- oder Browser-Fehler:\n" + error.message + "\n\nTipp: Wenn dieser Fehler kommt, blockiert dein Browser den Aufruf (CORS). Teste einen anderen Browser oder lade die Datei auf einen kleinen lokalen Server.";
+                output.innerText = "🚨 Fehler: " + error.message;
             }
         });
     </script>
 </body>
 </html>
-
-
-
