@@ -6,22 +6,22 @@
     <title>Henry Agenten-Farm MVP</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #121212; color: #f5f5f7; padding: 20px; margin: 0; position: relative; }
-        /* Revisionsnummer oben rechts */
-        .revision-tag { position: absolute; top: 15px; right: 20px; background: #2c2c2e; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; color: #8e8e93; border: 1px solid #3a3a3c; font-weight: bold; }
+        /* Revisionsnummer oben rechts im Dev-Modus */
+        .revision-tag { position: absolute; top: 15px; right: 20px; background: #ff9f0a; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; color: #000; font-weight: bold; }
         .card { background: #1c1c1e; padding: 20px; border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-width: 600px; margin: 40px auto 20px auto; }
-        h1 { font-size: 1.5rem; margin-top: 0; color: #30d158; }
+        h1 { font-size: 1.5rem; margin-top: 0; color: #ff9f0a; }
         input, textarea { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #3a3a3c; background: #2c2c2e; color: #fff; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 15px; background: #30d158; border: none; border-radius: 8px; color: white; font-weight: bold; font-size: 1rem; cursor: pointer; margin-top: 10px; }
-        #output { white-space: pre-wrap; background: #2c2c2e; padding: 15px; border-radius: 8px; min-height: 100px; margin-top: 15px; border-left: 4px solid #30d158; font-size: 0.95rem; line-height: 1.4; }
+        button { width: 100%; padding: 15px; background: #ff9f0a; border: none; border-radius: 8px; color: black; font-weight: bold; font-size: 1rem; cursor: pointer; margin-top: 10px; }
+        #output { white-space: pre-wrap; background: #2c2c2e; padding: 15px; border-radius: 8px; min-height: 100px; margin-top: 15px; border-left: 4px solid #ff9f0a; font-size: 0.95rem; line-height: 1.4; }
     </style>
 </head>
 <body>
 
     <!-- Versionsanzeige -->
-    <div class="revision-tag">REV V1.0</div>
+    <div class="revision-tag">REV V1.2 (dev)</div>
 
     <div class="card">
-        <h1>🤖 Henry-CEO MVP</h1>
+        <h1>🤖 Henry-CEO MVP (Dev)</h1>
         
         <label>Dein Gratis Google Gemini API-Key:</label>
         <input type="password" id="apiKey" placeholder="AIzaSy...">
@@ -55,6 +55,7 @@
             localStorage.setItem('henry_gemini_key', key);
             output.innerText = "⏳ CEO leitet den Befehl an die Abteilungen weiter...";
 
+            // ADLER-KORREKTUR: Wechsel auf die stabile v1 Route für gemini-2.5 Modelle
             var url = "https://googleapis.com" + key;
 
             var xhr = new XMLHttpRequest();
@@ -63,31 +64,37 @@
 
             xhr.onreadystatechange = function () {
                 if (xhr.readyState === 4) {
+                    // Falls die Antwort komplett leer ist, fangen wir das hier sofort ab
+                    if (!xhr.responseText || xhr.responseText.trim() === "") {
+                        output.innerText = "❌ Leere Antwort von Google erhalten.\nHTTP-Statuscode: " + xhr.status;
+                        return;
+                    }
+
+                    var data;
                     try {
-                        var data = JSON.parse(xhr.responseText);
-                        
-                        if (xhr.status === 200) {
-                            // ADLER-EXTRAKTION: Holt den Text sicher, egal wie tief verschachtelt
-                            var textResponse = "";
-                            if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-                                textResponse = data.candidates[0].content.parts[0].text;
-                            }
-                            
-                            if (textResponse) {
-                                output.innerText = textResponse;
-                            } else {
-                                // Fallback: Zeige das JSON formatiert an, falls kein direkter Text gefunden wird
-                                output.innerText = "Textpfad nicht lesbar. Rohdaten:\n" + JSON.stringify(data, null, 2);
-                            }
-                        } else {
-                            if (data.error && data.error.message) {
-                                output.innerText = "❌ Google API Fehler:\n" + data.error.message;
-                            } else {
-                                output.innerText = "❌ HTTP-Fehler " + xhr.status + ":\n" + xhr.responseText;
-                            }
-                        }
+                        data = JSON.parse(xhr.responseText);
                     } catch (e) {
-                        output.innerText = "🚨 Fehler beim Entschlüsseln der Antwort. Rohdaten von Google:\n" + xhr.responseText;
+                        output.innerText = "🚨 Server-Antwort ist kein gültiges JSON.\nHTTP-Status: " + xhr.status + "\nInhalt:\n" + xhr.responseText;
+                        return;
+                    }
+
+                    if (xhr.status === 200) {
+                        var textResponse = "";
+                        if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+                            textResponse = data.candidates[0].content.parts[0].text;
+                        }
+                        
+                        if (textResponse) {
+                            output.innerText = textResponse;
+                        } else {
+                            output.innerText = "⚠️ Text in JSON-Struktur nicht gefunden. Rohdaten:\n" + JSON.stringify(data, null, 2);
+                        }
+                    } else {
+                        if (data && data.error && data.error.message) {
+                            output.innerText = "❌ Google API Fehler (" + xhr.status + "):\n" + data.error.message;
+                        } else {
+                            output.innerText = "❌ HTTP-Fehler " + xhr.status + ":\n" + xhr.responseText;
+                        }
                     }
                 }
             };
