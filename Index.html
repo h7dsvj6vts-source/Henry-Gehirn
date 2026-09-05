@@ -126,7 +126,10 @@
                         if (textResponse) {
                             // ÄNDERUNG: Nutzt innerHTML statt innerText, um Fettdruck anzuzeigen
                             output.innerHTML = parseMarkdown(textResponse);
-                        } else {
+                        }  // HIER GENAU EINFÜGEN: Speichert die Antwort für den Kalender-Service
+    localStorage.setItem('henry_last_response', textResponse);
+}
+                        else {
                             output.innerText = "⚠️ Text nicht lesbar. Struktur:\n" + JSON.stringify(data, null, 2);
                         }
                     } else {
