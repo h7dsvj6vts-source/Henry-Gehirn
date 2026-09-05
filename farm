@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Henry Agenten-Farm MVP</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: #fff; padding: 20px; }
+        .card { background: #1c1c1e; padding: 20px; border-radius: 12px; max-width: 500px; margin: auto; }
+        input, textarea, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; box-sizing: border-box; }
+        input, textarea { background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; }
+        button { background: #30d158; border: none; color: white; font-weight: bold; cursor: pointer; }
+        #output { background: #2c2c2e; padding: 15px; border-left: 4px solid #30d158; min-height: 80px; white-space: pre-wrap; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>🤖 Henry-CEO MVP</h1>
+        <input type="password" id="apiKey" placeholder="Google Gemini API-Key hier einfügen">
+        <textarea id="taskInput" rows="3" placeholder="Befehl eingeben..."></textarea>
+        <button id="sendBtn" onclick="sendeBefehl()">🚀 Befehl senden</button>
+        <div id="output">Bereit. Gib einen Befehl ein.</div>
+    </div>
+
+    <script>
+        // Key automatisch laden
+        if(localStorage.getItem('henry_key')) {
+            document.getElementById('apiKey').value = localStorage.getItem('henry_key');
+        }
+
+        function sendeBefehl() {
+            var key = document.getElementById('apiKey').value.trim();
+            var prompt = document.getElementById('taskInput').value.trim();
+            var output = document.getElementById('output');
+
+            if(!key || !prompt) {
+                alert("Bitte Key und Befehl eingeben!");
+                return;
+            }
+
+            localStorage.setItem('henry_key', key);
+            output.innerText = "⏳ Verbindung zu Gemini wird aufgebaut...";
+
+            // Die absolut direkte URL zur stabilen Textgenerierung
+            var url = "https://googleapis.com" + key;
+
+            // Altes, unzerstörbares HTTP-Request-Verfahren (umgeht fetch-Einschränkungen)
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", url, true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        
+                        if (xhr.status === 200) {
+                            // Extraktion des Texts aus dem verschachtelten Google-Array
+                            if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+                                output.innerText = data.candidates[0].content.parts[0].text;
+                            } else {
+                                output.innerText = "Antwort erhalten, aber Text-Format unbekannt:\n" + xhr.responseText;
+                            }
+                        } else {
+                            // Gibt den echten Fehler aus, den Google zurückwirft (z.B. INVALID_ARGUMENT bei falschem Key)
+                            if (data.error && data.error.message) {
+                                output.innerText = "❌ Google API Fehler: " + data.error.message;
+                            } else {
+                                output.innerText = "❌ Fehler (Status " + xhr.status + "):\n" + xhr.responseText;
+                            }
+                        }
+                    } catch (e) {
+                        output.innerText = "🚨 Kritischer Systemfehler beim Lesen der Antwort:\n" + xhr.responseText;
+                    }
+                }
+            };
+
+            var systemPrompt = "Du bist der CEO einer KI-Agenten-Farm. Antworte kurz im Namen von [CEO], [CFO] und [COO] auf folgenden Befehl: ";
+
+            var payload = JSON.stringify({
+                contents: [{
+                    parts: [{ text: systemPrompt + prompt }]
+                }]
+            });
+
+            xhr.send(payload);
+        }
+    </script>
+</body>
+</html>
