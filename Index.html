@@ -11,18 +11,30 @@
         button { background: #30d158; border: none; color: white; font-weight: bold; cursor: pointer; }
         #output { background: #2c2c2e; padding: 15px; border-left: 4px solid #30d158; min-height: 80px; white-space: pre-wrap; margin-top: 15px; }
     </style>
+    
+    <!-- ADLER-LÖSUNG: Wir laden das offizielle Google AI Studio SDK direkt in den Browser -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/generative-ai": "https://esm.run"
+        }
+      }
+    </script>
 </head>
 <body>
 
     <div class="card">
-        <h1>🤖 Henry-CEO MVP</h1>
+        <h1>🤖 Henry-CEO MVP (SDK Version)</h1>
         <input type="password" id="apiKey" placeholder="Google Gemini API-Key hier einfügen">
         <textarea id="taskInput" rows="3" placeholder="Befehl eingeben..."></textarea>
         <button id="sendBtn">🚀 Befehl senden</button>
         <div id="output">Bereit. Gib einen Befehl ein.</div>
     </div>
 
-    <script>
+    <script type="module">
+        // Importieren der offiziellen Google-Bibliothek
+        import { GoogleGenerativeAI } from "@google/generative-ai";
+
         if(localStorage.getItem('henry_key')) {
             document.getElementById('apiKey').value = localStorage.getItem('henry_key');
         }
@@ -38,35 +50,24 @@
             }
 
             localStorage.setItem('henry_key', key);
-            output.innerText = "⏳ Verbinde mit Gemini...";
-
-            const url = `https://googleapis.com{key}`;
-            
-            const payload = {
-                contents: [{
-                    parts: [{ text: "Du bist der CEO einer KI-Agenten-Farm. Antworte kurz im Namen von [CEO], [CFO] und [COO] auf folgenden Befehl: " + prompt }]
-                }]
-            };
+            output.innerText = "⏳ Das Google SDK übernimmt... Verbindung wird aufgebaut...";
 
             try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+                // Initialisierung über die offizielle Google-Klasse (umgeht CORS-Direktblockaden)
+                const genAI = new GoogleGenerativeAI(key);
+                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-                const data = await response.json();
-
-                // ADLER-KORREKTUR: Robuster Fallback, der die echte Struktur garantiert ausliest
-                if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-                    output.innerText = data.candidates[0].content.parts[0].text;
-                } else {
-                    // Falls Google einen Fehler sendet, wird das gesamte JSON roh ausgegeben, damit du siehst was los ist
-                    output.innerText = "Antwort erhalten, aber Struktur weicht ab:\n" + JSON.stringify(data, null, 2);
-                }
+                const systemPrompt = "Du bist der CEO einer KI-Agenten-Farm. Antworte kurz im Namen von [CEO], [CFO] und [COO] auf folgenden Befehl: ";
+                
+                const result = await model.generateContent(systemPrompt + prompt);
+                const response = await result.response;
+                
+                // Ausgabe des Ergebnisses auf dem Bildschirm
+                output.innerText = response.text();
 
             } catch (error) {
-                output.innerText = "🚨 Fehler: " + error.message;
+                // Präzises Abfangen, falls der Key falsch ist oder Google ein anderes Problem meldet
+                output.innerText = "🚨 Fehler im Google SDK:\n" + error.message;
             }
         });
     </script>
