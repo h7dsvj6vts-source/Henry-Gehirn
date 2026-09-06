@@ -22,7 +22,6 @@
     </style>
 </head>
 <body>
-
     <div class="menu-container">
         <button class="menu-btn" onclick="toggleMenu(event)">☰ Menü</button>
         <div class="menu-dropdown" id="menuDropdown">
@@ -30,28 +29,20 @@
             <a href="Kalenderplan2.html">📅 Kalender-Manager</a>
         </div>
     </div>
-
-    <!-- UPDATE AUF SINKRONISIERTE VERSION 2.7 -->
     <div class="revision-tag">REV V2.7 (dev)</div>
-
     <div class="card">
         <h1>🤖 Henry-CEO MVP (Dev)</h1>
-        
         <label>Dein Gratis Google Gemini API-Key:</label>
         <input type="password" id="apiKey" placeholder="AIzaSy...">
-        
         <label>Dein Befehl an die Farm:</label>
         <textarea id="taskInput" rows="4" placeholder="Spreche oder schreibe etwas..."></textarea>
-        
         <button class="mic" id="micBtn">🎙️ Per Sprache eingeben</button>
         <button class="action-btn" id="sendBtn" onclick="sendeBefehl()">🚀 Befehl senden</button>
     </div>
-
     <div class="card">
         <h3>📋 Agenten-Feedback:</h3>
         <div id="output">Bereit. Gib mir einen Befehl.</div>
     </div>
-
     <script>
         function toggleMenu(e) {
             e.stopPropagation();
@@ -61,120 +52,71 @@
         document.addEventListener('click', function() {
             document.getElementById('menuDropdown').style.display = 'none';
         });
-
         if(localStorage.getItem('henry_gemini_key')) {
             document.getElementById('apiKey').value = localStorage.getItem('henry_gemini_key');
         }
-
         const micBtn = document.getElementById('micBtn');
         const taskInput = document.getElementById('taskInput');
-        
         if ('webkitSpeechRecognition' in window) {
             const recognition = new webkitSpeechRecognition();
             recognition.lang = 'de-DE';
             recognition.interimResults = false;
-
             micBtn.addEventListener('click', () => {
                 recognition.start();
                 micBtn.innerText = "⏳ Ich höre zu...";
                 micBtn.style.background = "#ff9f0a";
                 micBtn.style.color = "black";
             });
-
             recognition.onresult = (event) => {
                 taskInput.value = event.results[0][0].transcript;
                 micBtn.innerText = "🎙️ Per Sprache eingeben";
                 micBtn.style.background = "#0a84ff";
                 micBtn.style.color = "white";
             };
-            
             recognition.onerror = () => { 
                 micBtn.innerText = "🎙️ Fehler bei Erkennung"; 
                 micBtn.style.background = "#0a84ff"; 
                 micBtn.style.color = "white";
             };
-        } else {
-            micBtn.style.display = 'none'; 
-        }
-
-        function parseMarkdown(text) {
-            return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        }
-
+        } else { micBtn.style.display = 'none'; }
+        function parseMarkdown(text) { return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); }
         function sendeBefehl() {
             var key = document.getElementById('apiKey').value.trim();
             var prompt = taskInput.value.trim();
             var output = document.getElementById('output');
-
-            if(!key || !prompt) { 
-                alert("Bitte Key und Befehl eingeben!"); 
-                return; 
-            }
-            
+            if(!key || !prompt) { alert("Bitte Key und Befehl eingeben!"); return; }
             localStorage.setItem('henry_gemini_key', key);
             output.innerText = "⏳ CEO sendet Befehl an Gemini 3.6...";
-
             var maskiert = "aHR0cHM6Ly9nZW5lcmF0aXZlbGFuZ3VhZ2UuZ29vZ2xlYXBpcy5jb20vdjEvbW9kZWxzL2dlbWluaS0zLjYtZmxhc2g6Z2VuZXJhdGVDb250ZW50P2tleT0=";
             var url = atob(maskiert) + key;
-
             var xhr = new XMLHttpRequest();
             xhr.open("POST", url, true);
             xhr.setRequestHeader("Content-Type", "application/json");
-
             xhr.onreadystatechange = function () {
                 if (xhr.readyState === 4) {
-                    if (!xhr.responseText || xhr.responseText.trim() === "") {
-                        output.innerText = "❌ Verbindung blockiert (Statuscode: " + xhr.status + ").";
-                        return;
-                    }
-
+                    if (!xhr.responseText || xhr.responseText.trim() === "") { output.innerText = "❌ Verbindung blockiert (" + xhr.status + ")."; return; }
                     var data;
-                    try {
-                        data = JSON.parse(xhr.responseText);
-                    } catch (e) {
-                        output.innerText = "🚨 Server-Antwort-Fehler.";
-                        return;
-                    }
-
+                    try { data = JSON.parse(xhr.responseText); } catch (e) { output.innerText = "🚨 Server-Antwort-Fehler."; return; }
                     if (xhr.status === 200) {
                         try {
-                            // ADLER-FIX: Richtige Array-Indizes [0] hinzugefügt, um Abstürze zu verhindern
-                            if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+                            if (data && data.candidates && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0].text) {
                                 var rawJsonString = data.candidates[0].content.parts[0].text;
                                 var strukturierteAntwort = JSON.parse(rawJsonString);
-                                
                                 if (strukturierteAntwort.agenten_text) {
                                     output.innerHTML = parseMarkdown(strukturierteAntwort.agenten_text);
-                                    
-                                    if (strukturierteAntwort.kalender_daten) {
-                                        localStorage.setItem('henry_kalender_json', JSON.stringify(strukturierteAntwort.kalender_daten));
-                                    } else {
-                                        localStorage.removeItem('henry_kalender_json');
-                                    }
-                                } else {
-                                    output.innerText = "⚠️ Strukturfehler im Antwort-Inhalt.";
-                                }
-                            } else {
-                                output.innerText = "⚠️ Unerwartete Google-Antwort-Struktur.";
-                            }
-                        } catch(err) {
-                            output.innerText = "🚨 Fehler beim Lesen der Struktur: " + err.message;
-                        }
-                    } else {
-                        output.innerText = "❌ Fehler: " + (data.error ? data.error.message : xhr.responseText);
-                    }
+                                    if (strukturierteAntwort.kalender_daten) { localStorage.setItem('henry_kalender_json', JSON.stringify(strukturierteAntwort.kalender_daten)); }
+                                    else { localStorage.removeItem('henry_kalender_json'); }
+                                } else { output.innerText = "⚠️ Strukturfehler im Inhalt."; }
+                            } else { output.innerText = "⚠️ Unerwartete Google-Struktur."; }
+                        } catch(err) { output.innerText = "🚨 Strukturfehler: " + err.message; }
+                    } else { output.innerText = "❌ Fehler: " + (data.error ? data.error.message : xhr.responseText); }
                 }
             };
-
             var heute = new Date();
             var datumsKontext = "Heute ist der: " + heute.toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + ".\n";
-
-            var systemPrompt = "Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den eingehenden Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen/Dokumente) darauf reagieren würden. Antworte strukturiert im Namen des [CEO-Agent], [CFO-Agent], [COO-Agent] und [CIO-Agent]. Halte es kurz und prägnant.";
-
+            var systemPrompt = "Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen) reagieren. Antworte kurz im Namen von [CEO-Agent], [CFO-Agent], [COO-Agent] und [CIO-Agent].";
             var payload = JSON.stringify({
-                contents: [{
-                    parts: [{ text: datumsKontext + systemPrompt + "\n\nHenrys Befehl: " + prompt }]
-                }],
+                contents: [{ parts: [{ text: datumsKontext + systemPrompt + "\n\nHenrys Befehl: " + prompt }] }],
                 generationConfig: {
                     responseMimeType: "application/json",
                     responseSchema: {
@@ -183,6 +125,16 @@
                             agenten_text: { type: "STRING" },
                             kalender_daten: {
                                 type: "OBJECT",
-                                properties: {
-                                    titel: { type: "STRING" },
-
+                                properties: { titel: { type: "STRING" }, start: { type: "STRING" }, end: { type: "STRING" } },
+                                required: ["titel", "start", "end"]
+                            }
+                        },
+                        required: ["agenten_text"]
+                    }
+                }
+            });
+            xhr.send(payload);
+        }
+    </script>
+</body>
+</html>
