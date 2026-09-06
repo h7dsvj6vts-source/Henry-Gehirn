@@ -114,7 +114,9 @@
             };
             var heute = new Date();
             var datumsKontext = "Heute ist der: " + heute.toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + ".\n";
-            var systemPrompt = "Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen) reagieren. Antworte kurz im Namen von [CEO-Agent], [CFO-Agent], [COO-Agent] und [CIO-Agent].";
+            
+            var systemPrompt = "Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen) reagieren. Antworte kurz im Namen von [CEO-Agent]. WICHTIGE UHRZEIT-REGEL: Interpretiere Zeitangaben strikt im europäischen 24-Stunden-Format. Wenn der Nutzer '5 Uhr' ohne Zusatz wie 'nachmittags' oder 'abends' sagt, ist das IMMER 05:00 Uhr morgens. '12 Uhr' ist mittags. Gib im JSON-Objekt 'kalender_daten' die Werte für 'start' und 'end' immer als korrekten ISO-Zeitstempel (YYYY-MM-DDTHH:MM:SS) aus.";
+
             var payload = JSON.stringify({
                 contents: [{ parts: [{ text: datumsKontext + systemPrompt + "\n\nHenrys Befehl: " + prompt }] }],
                 generationConfig: {
