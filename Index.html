@@ -31,7 +31,8 @@
         </div>
     </div>
 
-    <div class="revision-tag">REV V2.6 (dev)</div>
+    <!-- UPDATE AUF SINKRONISIERTE VERSION 2.7 -->
+    <div class="revision-tag">REV V2.7 (dev)</div>
 
     <div class="card">
         <h1>🤖 Henry-CEO MVP (Dev)</h1>
@@ -137,22 +138,24 @@
 
                     if (xhr.status === 200) {
                         try {
-                            // ADLER-UPGRADE: Wir parsen die strukturierte Antwort von Google
-                            var rawJsonString = data.candidates[0].content.parts[0].text;
-                            var strukturierteAntwort = JSON.parse(rawJsonString);
-                            
-                            if (strukturierteAntwort.agenten_text) {
-                                // Zeige den Text im Interface an
-                                output.innerHTML = parseMarkdown(strukturierteAntwort.agenten_text);
+                            // ADLER-FIX: Richtige Array-Indizes [0] hinzugefügt, um Abstürze zu verhindern
+                            if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+                                var rawJsonString = data.candidates[0].content.parts[0].text;
+                                var strukturierteAntwort = JSON.parse(rawJsonString);
                                 
-                                // Speichere die reinen, sauberen Kalenderdaten separat ab
-                                if (strukturierteAntwort.kalender_daten) {
-                                    localStorage.setItem('henry_kalender_json', JSON.stringify(strukturierteAntwort.kalender_daten));
+                                if (strukturierteAntwort.agenten_text) {
+                                    output.innerHTML = parseMarkdown(strukturierteAntwort.agenten_text);
+                                    
+                                    if (strukturierteAntwort.kalender_daten) {
+                                        localStorage.setItem('henry_kalender_json', JSON.stringify(strukturierteAntwort.kalender_daten));
+                                    } else {
+                                        localStorage.removeItem('henry_kalender_json');
+                                    }
                                 } else {
-                                    localStorage.removeItem('henry_kalender_json');
+                                    output.innerText = "⚠️ Strukturfehler im Antwort-Inhalt.";
                                 }
                             } else {
-                                output.innerText = "⚠️ Strukturfehler im Antwort-Inhalt.";
+                                output.innerText = "⚠️ Unerwartete Google-Antwort-Struktur.";
                             }
                         } catch(err) {
                             output.innerText = "🚨 Fehler beim Lesen der Struktur: " + err.message;
@@ -168,7 +171,6 @@
 
             var systemPrompt = "Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den eingehenden Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen/Dokumente) darauf reagieren würden. Antworte strukturiert im Namen des [CEO-Agent], [CFO-Agent], [COO-Agent] und [CIO-Agent]. Halte es kurz und prägnant.";
 
-            // ADLER-STRATEGIE: Ein fixes JSON-Schema zwingt die API zur unzerstörbaren Datenstruktur
             var payload = JSON.stringify({
                 contents: [{
                     parts: [{ text: datumsKontext + systemPrompt + "\n\nHenrys Befehl: " + prompt }]
@@ -178,10 +180,8 @@
                     responseSchema: {
                         type: "OBJECT",
                         properties: {
-                            agenten_text: { 
-                                type: "STRING", 
-                                description: "Die komplette, normale Antwort der Agenten (CEO, CFO, COO, CIO) untereinander formatiert." 
-                            },
+                            agenten_text: { type: "STRING" },
                             kalender_daten: {
                                 type: "OBJECT",
-                                description: "NUR ausfüllen, wenn ein konkreter Termin oder eine Uhrzeit im Befehl erkannt wurde. Ansonsten leer lassen.",
+                                properties: {
+                                    titel: { type: "STRING" },
