@@ -31,7 +31,7 @@
         </div>
     </div>
 
-    <div class="revision-tag">REV V2.5 (dev)</div>
+    <div class="revision-tag">REV V2.6 (dev)</div>
 
     <div class="card">
         <h1>🤖 Henry-CEO MVP (Dev)</h1>
@@ -81,7 +81,7 @@
             });
 
             recognition.onresult = (event) => {
-                taskInput.value = event.results.transcript;
+                taskInput.value = event.results[0][0].transcript;
                 micBtn.innerText = "🎙️ Per Sprache eingeben";
                 micBtn.style.background = "#0a84ff";
                 micBtn.style.color = "white";
@@ -131,21 +131,31 @@
                     try {
                         data = JSON.parse(xhr.responseText);
                     } catch (e) {
-                        output.innerText = "🚨 Antwort-Fehler.";
+                        output.innerText = "🚨 Server-Antwort-Fehler.";
                         return;
                     }
 
                     if (xhr.status === 200) {
-                        var textResponse = "";
-                        if (data && data.candidates && data.candidates.content && data.candidates.content.parts && data.candidates.content.parts.text) {
-                            textResponse = data.candidates.content.parts.text;
-                        }
-                        
-                        if (textResponse) {
-                            output.innerHTML = parseMarkdown(textResponse);
-                            localStorage.setItem('henry_last_response', textResponse);
-                        } else {
-                            output.innerText = "⚠️ Text nicht lesbar.";
+                        try {
+                            // ADLER-UPGRADE: Wir parsen die strukturierte Antwort von Google
+                            var rawJsonString = data.candidates[0].content.parts[0].text;
+                            var strukturierteAntwort = JSON.parse(rawJsonString);
+                            
+                            if (strukturierteAntwort.agenten_text) {
+                                // Zeige den Text im Interface an
+                                output.innerHTML = parseMarkdown(strukturierteAntwort.agenten_text);
+                                
+                                // Speichere die reinen, sauberen Kalenderdaten separat ab
+                                if (strukturierteAntwort.kalender_daten) {
+                                    localStorage.setItem('henry_kalender_json', JSON.stringify(strukturierteAntwort.kalender_daten));
+                                } else {
+                                    localStorage.removeItem('henry_kalender_json');
+                                }
+                            } else {
+                                output.innerText = "⚠️ Strukturfehler im Antwort-Inhalt.";
+                            }
+                        } catch(err) {
+                            output.innerText = "🚨 Fehler beim Lesen der Struktur: " + err.message;
                         }
                     } else {
                         output.innerText = "❌ Fehler: " + (data.error ? data.error.message : xhr.responseText);
@@ -156,17 +166,22 @@
             var heute = new Date();
             var datumsKontext = "Heute ist der: " + heute.toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + ".\n";
 
-            var systemPrompt = "Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den eingehenden Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen/Dokumente) darauf reagieren würden. Antworte strukturiert im Namen des [CEO-Agent], [CFO-Agent], [COO-Agent] und [CIO-Agent]. Halte es kurz und prägnant.\n\n" +
-                               "WICHTIG: Wenn im Befehl ein Termin oder eine Uhrzeit genannt wird, füge ganz am Ende deiner Antwort (nach allen Agenten) folgendes verstecktes JSON-Datenpaket ein, berechnet auf Basis des aktuellen Datums: KALENDER_DATA:{\"titel\":\"Eventname\",\"start\":\"YYYY-MM-DDTHH:MM:00\",\"end\":\"YYYY-MM-DDTHH:MM:00\"}";
+            var systemPrompt = "Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den eingehenden Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen/Dokumente) darauf reagieren würden. Antworte strukturiert im Namen des [CEO-Agent], [CFO-Agent], [COO-Agent] und [CIO-Agent]. Halte es kurz und prägnant.";
 
+            // ADLER-STRATEGIE: Ein fixes JSON-Schema zwingt die API zur unzerstörbaren Datenstruktur
             var payload = JSON.stringify({
                 contents: [{
                     parts: [{ text: datumsKontext + systemPrompt + "\n\nHenrys Befehl: " + prompt }]
-                }]
-            });
-
-            xhr.send(payload);
-        }
-    </script>
-</body>
-</html>
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            agenten_text: { 
+                                type: "STRING", 
+                                description: "Die komplette, normale Antwort der Agenten (CEO, CFO, COO, CIO) untereinander formatiert." 
+                            },
+                            kalender_daten: {
+                                type: "OBJECT",
+                                description: "NUR ausfüllen, wenn ein konkreter Termin oder eine Uhrzeit im Befehl erkannt wurde. Ansonsten leer lassen.",
