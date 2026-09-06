@@ -30,7 +30,7 @@
             <a href="#" onclick="kalenderAuslesen(event)">🔄 Kalender auslesen</a>
         </div>
     </div>
-    <div class="revision-tag">REV V2.9 (dev)</div>
+    <div class="revision-tag">REV V3.0 (dev)</div>
     <div class="card">
         <h1>🤖 Henry-CEO MVP (Dev)</h1>
         <label>Dein Gratis Google Gemini API-Key:</label>
@@ -99,9 +99,9 @@
             sendBtn.style.cursor = "not-allowed";
             sendBtn.innerText = "⏳ Bitte warten...";
             
-            output.innerText = "⏳ CEO sendet Befehl an Gemini...";
+            output.innerText = "⏳ CEO sendet Befehl an Gemini 3.6...";
             
-            var maskiert = "aHR0cHM6Ly9nZW5lcmF0aXZlbGFuZ3VhZ2UuZ29vZ2xlYXBpcy5jb20vdjEvbW9kZWxzL2dlbWluaS0xLjUtZmxhc2g6Z2VuZXJhdGVDb250ZW50P2tleT0=";
+            var maskiert = "aHR0cHM6Ly9nZW5lcmF0aXZlbGFuZ3VhZ2UuZ29vZ2xlYXBpcy5jb20vdjEvbW9kZWxzL2dlbWluaS0zLjYtZmxhc2g6Z2VuZXJhdGVDb250ZW50P2tleT0=";
             var url = atob(maskiert) + key;
             var xhr = new XMLHttpRequest();
             xhr.open("POST", url, true);
