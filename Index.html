@@ -99,7 +99,7 @@
             sendBtn.style.cursor = "not-allowed";
             sendBtn.innerText = "⏳ Bitte warten...";
             
-            output.innerText = "⏳ CEO sendet Befehl an Gemini 3.6...";
+            output.innerText = "⏳ CEO sendet Befehl an Gemini...";
             
             var maskiert = "aHR0cHM6Ly9nZW5lcmF0aXZlbGFuZ3VhZ2UuZ29vZ2xlYXBpcy5jb20vdjEvbW9kZWxzL2dlbWluaS0zLjYtZmxhc2g6Z2VuZXJhdGVDb250ZW50P2tleT0=";
             var url = atob(maskiert) + key;
@@ -125,24 +125,16 @@
                     
                     if (xhr.status === 429 || responseTextRaw.includes("quota exceeded") || responseTextRaw.includes("please retry in")) {
                         versuchZaehler++;
-                        
                         var wartezeit = 45; 
                         var treffer = xhr.responseText.match(/retry in\s+([0-9.]+)/i);
-                        if (treffer && treffer[1]) {
-                            wartezeit = Math.ceil(parseFloat(treffer[1])); 
-                        } else {
-                            wartezeit = Math.min(15 * Math.pow(2, versuchZaehler - 1), 60);
-                        }
+                        if (treffer && treffer) { wartezeit = Math.ceil(parseFloat(treffer[1])); }
+                        else { wartezeit = Math.min(15 * Math.pow(2, versuchZaehler - 1), 60); }
                         
                         var countdown = wartezeit;
                         var interval = setInterval(function() {
                             output.innerHTML = "⏳ <strong>Du musst warten.</strong> Die Anfrage wird automatisch nach <strong>" + countdown + " Sekunden</strong> gestartet.";
                             countdown--;
-                            
-                            if (countdown < 0) {
-                                clearInterval(interval);
-                                sendeBefehl(); 
-                            }
+                            if (countdown < 0) { clearInterval(interval); sendeBefehl(); }
                         }, 1000);
                         return;
                     }
@@ -157,16 +149,23 @@
                         versuchZaehler = 0;
                         try {
                             if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text) {
-                                var rawJsonString = data.candidates[0].content.parts[0].text;
-                                var strukturierteAntwort = JSON.parse(rawJsonString);
-                                if (strukturierteAntwort.agenten_text) {
-                                    output.innerHTML = parseMarkdown(strukturierteAntwort.agenten_text);
-                                    if (strukturierteAntwort.kalender_daten) { 
-                                        localStorage.setItem('henry_kalender_json', JSON.stringify(strukturierteAntwort.kalender_daten)); 
-                                    } else { 
-                                        localStorage.removeItem('henry_kalender_json'); 
-                                    }
-                                } else { output.innerText = "⚠️ Strukturfehler im Inhalt."; }
+                                var rawText = data.candidates[0].content.parts[0].text;
+                                
+                                // INTELLIGENTER FILTER: Trennt reinen Text von verstecktem JSON-Code
+                                var jsonMatch = rawText.match(/\{[\s\S]*\}/);
+                                if (jsonMatch) {
+                                    var strukturierteAntwort = JSON.parse(jsonMatch[0]);
+                                    if (strukturierteAntwort.agenten_text) {
+                                        output.innerHTML = parseMarkdown(strukturierteAntwort.agenten_text);
+                                        if (strukturierteAntwort.kalender_daten) { 
+                                            localStorage.setItem('henry_kalender_json', JSON.stringify(strukturierteAntwort.kalender_daten)); 
+                                        } else { localStorage.removeItem('henry_kalender_json'); }
+                                    } else { output.innerText = "⚠️ Strukturfehler im extrahierten JSON."; }
+                                } else {
+                                    // Falls Gemini nur reinen Text ohne JSON liefert
+                                    output.innerHTML = parseMarkdown(rawText);
+                                    localStorage.removeItem('henry_kalender_json');
+                                }
                             } else { output.innerText = "⚠️ Unerwartete Google-Struktur."; }
                         } catch(err) { output.innerText = "🚨 Strukturfehler: " + err.message; }
                     } else { 
@@ -177,7 +176,7 @@
             
             var heute = new Date();
             var datumsKontext = "Heute ist der: " + heute.toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + ".\n";
-            var systemPrompt = "Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen) reagieren. Antworte kurz im Namen von [CEO-Agent]. WICHTIGE UHRZEIT-REGEL: Interpretiere Zeitangaben strikt im europäischen 24-Stunden-Format. Wenn der Nutzer '5 Uhr' ohne Zusatz wie 'nachmittags' oder 'abends' sagt, ist das IMMER 05:00 Uhr morgens. '12 Uhr' ist mittags. Gib im JSON-Objekt 'kalender_daten' die Werte für 'start' und 'end' immer als korrekten ISO-Zeitstempel (YYYY-MM-DDTHH:MM:SS) aus.";
+            var systemPrompt = "Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen) reagieren. Antworte kurz im Namen von [CEO-Agent]. WICHTIGE UHRZEIT-REGEL: Interpretiere Zeitangaben strikt im europäischen 24-Stunden-Format. Wenn der Nutzer '5 Uhr' ohne Zusatz wie 'nachmittags' oder 'abends' sagt, ist das IMMER 05:00 Uhr morgens. '12 Uhr' ist mittags. Deine Antwort MUSS ein valides JSON-Objekt sein mit den Schlüsseln 'agenten_text' (deine Text-Antwort) und optional 'kalender_daten' (ein Objekt mit 'titel', 'start', 'end' als ISO-Zeitstempel YYYY-MM-DDTHH:MM:SS, falls ein konkreter Termin erkannt wird).";
             
             var payload = {
                 contents: [{ parts: [{ text: datumsKontext + systemPrompt + "\nNutzer-Befehl: " + prompt }] }]
