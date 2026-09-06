@@ -3,18 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Henry Kalender-Manager v2.1</title>
+    <title>Henry Kalender-Manager v2.3</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #121212; color: #f5f5f7; padding: 20px; margin: 0; position: relative; }
         .revision-tag { position: absolute; top: 15px; right: 20px; background: #30d158; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; color: #000; font-weight: bold; }
-        
-        /* Hamburger Menü Styles */
         .menu-container { position: absolute; top: 15px; left: 20px; z-index: 1000; }
         .menu-btn { background: #2c2c2e; border: 1px solid #3a3a3c; color: #fff; font-size: 1.2rem; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
         .menu-dropdown { display: none; position: absolute; top: 35px; left: 0; background: #1c1c1e; border: 1px solid #3a3a3c; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); width: 200px; }
         .menu-dropdown a { display: block; color: #f5f5f7; padding: 12px 16px; text-decoration: none; font-size: 0.95rem; border-bottom: 1px solid #2c2c2e; }
         .menu-dropdown a:hover { background: #2c2c2e; color: #30d158; }
-        
         .card { background: #1c1c1e; padding: 20px; border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-width: 600px; margin: 50px auto 20px auto; }
         h1 { font-size: 1.5rem; margin-top: 0; color: #30d158; }
         .task-item { background: #2c2c2e; padding: 15px; border-radius: 8px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #30d158; }
@@ -28,7 +25,6 @@
 </head>
 <body>
 
-    <!-- Hamburger Menü -->
     <div class="menu-container">
         <button class="menu-btn" onclick="toggleMenu(event)">☰ Menü</button>
         <div class="menu-dropdown" id="menuDropdown">
@@ -37,17 +33,17 @@
         </div>
     </div>
 
-    <div class="revision-tag">REV V2.2 (dev)</div>
+    <div class="revision-tag">REV V2.3 (dev)</div>
 
     <div class="card">
-        <h1>🗓️ Henry-COO Kalender-Verarbeitung v2.2</h1>
+        <h1>🗓️ Henry-COO Kalender-Verarbeitung v2.3</h1>
         <p>Gefundene Termine aus der letzten Agenten-Antwort für den Kalender <strong>"Henry"</strong>:</p>
         
         <div id="taskList">
             <div class="no-tasks">Lade Daten aus dem Speicher...</div>
         </div>
         
-        <a href="index.html" class="back-link">← Zurück zur Agenten-Farm</a>
+        <a href="Index.html" class="back-link">← Zurück zur Agenten-Farm</a>
     </div>
 
     <script>
@@ -80,15 +76,12 @@
 
             const lines = cooText.split(/\n|,|\./).map(l => l.trim()).filter(l => l.length > 5);
             const tasks = [];
-            
-            // KORREKTUR: Nutzt jetzt das dynamische Echtzeit-Datum des Geräts!
             const heute = new Date(); 
 
             lines.forEach(line => {
                 const timeMatch = line.match(/(\d{1,2})(?::(\d{2}))?\s*(?:Uhr)?/i);
                 if (timeMatch) {
                     let stunde = parseInt(timeMatch[1]);
-                    // KORREKTUR: Prüft nun sauber auf den zweiten Match-Index für Minuten
                     let minute = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
                     
                     let terminDatum = new Date(heute);
@@ -123,7 +116,7 @@
             }
 
             taskListContainer.innerHTML = "";
-            tasks.forEach((task, index) => {
+            tasks.forEach((task) => {
                 const dateStr = task.date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
                 const timeStr = `${String(task.stunde).padStart(2, '0')}:${String(task.minute).padStart(2, '0')} Uhr`;
 
@@ -145,12 +138,17 @@
             });
         });
 
-        // ADLER-KORREKTUR FÜR DEN MAC: Ein unsichtbarer Iframe feuert den Kurzbefehl ab.
-        // Das verhindert, dass macOS das Hauptfenster einfriert.
         function triggereAppleShortcut(base64Title, startIso, endIso) {
             const title = decodeURIComponent(escape(atob(base64Title)));
-            const datenPaket = `Titel: ${title}\nStart: ${startIso}\nEnde: ${endIso}`;
-            const shortcutUrl = `shortcuts://run-shortcut?name=HenryKalender&input=text&text=${encodeURIComponent(datenPaket)}`;
+            
+            // DIE ENTSCHEIDENDE KORREKTUR: Wir übergeben ein sauberes JSON-Wörterbuch-Paket
+            const jsonPaket = JSON.stringify({
+                titel: title,
+                start: startIso,
+                end: endIso
+            });
+            
+            const shortcutUrl = `shortcuts://run-shortcut?name=HenryKalender&input=text&text=${encodeURIComponent(jsonPaket)}`;
             
             let iframe = document.getElementById('shortcut-frame');
             if (!iframe) {
