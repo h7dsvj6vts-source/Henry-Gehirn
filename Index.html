@@ -1,1 +1,188 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Henry Agenten-Farm MVP</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #121212; color: #f5f5f7; padding: 20px; margin: 0; position: relative; }
+        .revision-tag { position: absolute; top: 15px; right: 20px; background: #ff9f0a; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; color: #000; font-weight: bold; }
+        .menu-container { position: absolute; top: 15px; left: 20px; z-index: 1000; }
+        .menu-btn { background: #2c2c2e; border: 1px solid #3a3a3c; color: #fff; font-size: 1.2rem; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
+        .menu-dropdown { display: none; position: absolute; top: 35px; left: 0; background: #1c1c1e; border: 1px solid #3a3a3c; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); width: 200px; }
+        .menu-dropdown a { display: block; color: #f5f5f7; padding: 12px 16px; text-decoration: none; font-size: 0.95rem; border-bottom: 1px solid #2c2c2e; }
+        .menu-dropdown a:hover { background: #2c2c2e; color: #ff9f0a; }
+        .card { background: #1c1c1e; padding: 20px; border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-width: 600px; margin: 50px auto 20px auto; }
+        h1 { font-size: 1.5rem; margin-top: 0; color: #ff9f0a; }
+        input, textarea { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #3a3a3c; background: #2c2c2e; color: #fff; box-sizing: border-box; font-size: 16px; }
+        button.action-btn { width: 100%; padding: 15px; background: #ff9f0a; border: none; border-radius: 8px; color: black; font-weight: bold; font-size: 1rem; cursor: pointer; margin-top: 10px; }
+        button.mic { width: 100%; padding: 12px; background: #0a84ff; color: white; border: none; border-radius: 8px; font-weight: bold; margin-bottom: 5px; cursor: pointer; }
+        #output { white-space: pre-wrap; background: #2c2c2e; padding: 15px; border-radius: 8px; min-height: 100px; margin-top: 15px; border-left: 4px solid #ff9f0a; font-size: 0.95rem; line-height: 1.4; }
+        #output strong { color: #ff9f0a; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <div class="menu-container">
+        <button class="menu-btn" onclick="toggleMenu(event)">☰ Menü</button>
+        <div class="menu-dropdown" id="menuDropdown">
+            <a href="Index.html">🤖 CEO-Zentrale</a>
+            <a href="Kalenderplan2.html">📅 Kalender-Manager</a>
+        </div>
+    </div>
+
+    <!-- UPDATE AUF SINKRONISIERTE VERSION 2.7 -->
+    <div class="revision-tag">REV V2.7 (dev)</div>
+
+    <div class="card">
+        <h1>🤖 Henry-CEO MVP (Dev)</h1>
+        
+        <label>Dein Gratis Google Gemini API-Key:</label>
+        <input type="password" id="apiKey" placeholder="AIzaSy...">
+        
+        <label>Dein Befehl an die Farm:</label>
+        <textarea id="taskInput" rows="4" placeholder="Spreche oder schreibe etwas..."></textarea>
+        
+        <button class="mic" id="micBtn">🎙️ Per Sprache eingeben</button>
+        <button class="action-btn" id="sendBtn" onclick="sendeBefehl()">🚀 Befehl senden</button>
+    </div>
+
+    <div class="card">
+        <h3>📋 Agenten-Feedback:</h3>
+        <div id="output">Bereit. Gib mir einen Befehl.</div>
+    </div>
+
+    <script>
+        function toggleMenu(e) {
+            e.stopPropagation();
+            var menu = document.getElementById('menuDropdown');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        }
+        document.addEventListener('click', function() {
+            document.getElementById('menuDropdown').style.display = 'none';
+        });
+
+        if(localStorage.getItem('henry_gemini_key')) {
+            document.getElementById('apiKey').value = localStorage.getItem('henry_gemini_key');
+        }
+
+        const micBtn = document.getElementById('micBtn');
+        const taskInput = document.getElementById('taskInput');
+        
+        if ('webkitSpeechRecognition' in window) {
+            const recognition = new webkitSpeechRecognition();
+            recognition.lang = 'de-DE';
+            recognition.interimResults = false;
+
+            micBtn.addEventListener('click', () => {
+                recognition.start();
+                micBtn.innerText = "⏳ Ich höre zu...";
+                micBtn.style.background = "#ff9f0a";
+                micBtn.style.color = "black";
+            });
+
+            recognition.onresult = (event) => {
+                taskInput.value = event.results[0][0].transcript;
+                micBtn.innerText = "🎙️ Per Sprache eingeben";
+                micBtn.style.background = "#0a84ff";
+                micBtn.style.color = "white";
+            };
+            
+            recognition.onerror = () => { 
+                micBtn.innerText = "🎙️ Fehler bei Erkennung"; 
+                micBtn.style.background = "#0a84ff"; 
+                micBtn.style.color = "white";
+            };
+        } else {
+            micBtn.style.display = 'none'; 
+        }
+
+        function parseMarkdown(text) {
+            return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        }
+
+        function sendeBefehl() {
+            var key = document.getElementById('apiKey').value.trim();
+            var prompt = taskInput.value.trim();
+            var output = document.getElementById('output');
+
+            if(!key || !prompt) { 
+                alert("Bitte Key und Befehl eingeben!"); 
+                return; 
+            }
+            
+            localStorage.setItem('henry_gemini_key', key);
+            output.innerText = "⏳ CEO sendet Befehl an Gemini 3.6...";
+
+            var maskiert = "aHR0cHM6Ly9nZW5lcmF0aXZlbGFuZ3VhZ2UuZ29vZ2xlYXBpcy5jb20vdjEvbW9kZWxzL2dlbWluaS0zLjYtZmxhc2g6Z2VuZXJhdGVDb250ZW50P2tleT0=";
+            var url = atob(maskiert) + key;
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", url, true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (!xhr.responseText || xhr.responseText.trim() === "") {
+                        output.innerText = "❌ Verbindung blockiert (Statuscode: " + xhr.status + ").";
+                        return;
+                    }
+
+                    var data;
+                    try {
+                        data = JSON.parse(xhr.responseText);
+                    } catch (e) {
+                        output.innerText = "🚨 Server-Antwort-Fehler.";
+                        return;
+                    }
+
+                    if (xhr.status === 200) {
+                        try {
+                            // ADLER-FIX: Richtige Array-Indizes [0] hinzugefügt, um Abstürze zu verhindern
+                            if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+                                var rawJsonString = data.candidates[0].content.parts[0].text;
+                                var strukturierteAntwort = JSON.parse(rawJsonString);
+                                
+                                if (strukturierteAntwort.agenten_text) {
+                                    output.innerHTML = parseMarkdown(strukturierteAntwort.agenten_text);
+                                    
+                                    if (strukturierteAntwort.kalender_daten) {
+                                        localStorage.setItem('henry_kalender_json', JSON.stringify(strukturierteAntwort.kalender_daten));
+                                    } else {
+                                        localStorage.removeItem('henry_kalender_json');
+                                    }
+                                } else {
+                                    output.innerText = "⚠️ Strukturfehler im Antwort-Inhalt.";
+                                }
+                            } else {
+                                output.innerText = "⚠️ Unerwartete Google-Antwort-Struktur.";
+                            }
+                        } catch(err) {
+                            output.innerText = "🚨 Fehler beim Lesen der Struktur: " + err.message;
+                        }
+                    } else {
+                        output.innerText = "❌ Fehler: " + (data.error ? data.error.message : xhr.responseText);
+                    }
+                }
+            };
+
+            var heute = new Date();
+            var datumsKontext = "Heute ist der: " + heute.toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + ".\n";
+
+            var systemPrompt = "Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den eingehenden Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen/Dokumente) darauf reagieren würden. Antworte strukturiert im Namen des [CEO-Agent], [CFO-Agent], [COO-Agent] und [CIO-Agent]. Halte es kurz und prägnant.";
+
+            var payload = JSON.stringify({
+                contents: [{
+                    parts: [{ text: datumsKontext + systemPrompt + "\n\nHenrys Befehl: " + prompt }]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            agenten_text: { type: "STRING" },
+                            kalender_daten: {
+                                type: "OBJECT",
+                                properties: {
+                                    titel: { type: "STRING" },
 
