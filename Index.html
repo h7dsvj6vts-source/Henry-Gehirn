@@ -27,7 +27,7 @@
         <div class="menu-dropdown" id="menuDropdown">
             <a href="Index.html">🤖 CEO-Zentrale</a>
             <a href="Kalenderplan2.html">📅 Kalender-Manager</a>
-            <a href="#" onclick="kalenderAuslesen(event)">🔄 Kalender auslesen
+            <a href="#" onclick="kalenderAuslesen(event)">🔄 Kalender auslesen</a>
         </div>
     </div>
     <div class="revision-tag">REV V2.8 (dev)</div>
@@ -80,64 +80,91 @@
                 micBtn.style.color = "white";
             };
         } else { micBtn.style.display = 'none'; }
+        
         function parseMarkdown(text) { return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); }
+        
+        // AUTOMATISCHE WARTESCHLEIFEN-LOGIK
+        var versuchZaehler = 0;
+
         function sendeBefehl() {
             var key = document.getElementById('apiKey').value.trim();
             var prompt = taskInput.value.trim();
             var output = document.getElementById('output');
+            var sendBtn = document.getElementById('sendBtn');
+            
             if(!key || !prompt) { alert("Bitte Key und Befehl eingeben!"); return; }
             localStorage.setItem('henry_gemini_key', key);
-            output.innerText = "⏳ CEO sendet Befehl an Gemini 3.6...";
+            
+            // BUTTON DEAKTIVIEREN UND OPTISCH GRAU FÄRBEN
+            sendBtn.disabled = true;
+            sendBtn.style.background = "#3a3a3c";
+            sendBtn.style.color = "#aeaeab";
+            sendBtn.style.cursor = "not-allowed";
+            sendBtn.innerText = "⏳ Bitte warten...";
+            
+            output.innerText = "⏳ CEO sendet Befehl an Gemini...";
+            
             var maskiert = "aHR0cHM6Ly9nZW5lcmF0aXZlbGFuZ3VhZ2UuZ29vZ2xlYXBpcy5jb20vdjEvbW9kZWxzL2dlbWluaS0zLjYtZmxhc2g6Z2VuZXJhdGVDb250ZW50P2tleT0=";
             var url = atob(maskiert) + key;
             var xhr = new XMLHttpRequest();
             xhr.open("POST", url, true);
             xhr.setRequestHeader("Content-Type", "application/json");
+            
             xhr.onreadystatechange = function () {
                 if (xhr.readyState === 4) {
-                    if (!xhr.responseText || xhr.responseText.trim() === "") { output.innerText = "❌ Verbindung blockiert (" + xhr.status + ")."; return; }
-                    var data;
-                    try { data = JSON.parse(xhr.responseText); } catch (e) { output.innerText = "🚨 Server-Antwort-Fehler."; return; }
-                    if (xhr.status === 200) {
+                    if (!xhr.responseText || xhr.responseText.trim() === "") { 
+                        output.innerText = "❌ Verbindung blockiert (" + xhr.status + ")."; 
+                        // Schalter bei Netzwerkfehler wieder freigeben
+                        sendBtn.disabled = false;
+                        sendBtn.style.background = "#ff9f0a";
+                        sendBtn.style.color = "black";
+                        sendBtn.style.cursor = "pointer";
+                        sendBtn.innerText = "🚀 Befehl senden";
+                        return; 
+                    }
+                    
+                    var data = null;
+                    var responseTextRaw = xhr.responseText.toLowerCase();
+                    try { data = JSON.parse(xhr.responseText); } catch (e) { }
+                    
+                    // RATE LIMITS / QUOTA EXCEEDED ERKENNUNG
+                    if (xhr.status === 429 || responseTextRaw.includes("quota exceeded") || responseTextRaw.includes("please retry in")) {
+                        versuchZaehler++;
+                        
+                        var wartezeit = 45; 
+                        var treffer = xhr.responseText.match(/retry in\s+([0-9.]+)/i);
+                        if (treffer && treffer[1]) {
+                            wartezeit = Math.ceil(parseFloat(treffer[1])); 
+                        } else {
+                            wartezeit = Math.min(15 * Math.pow(2, versuchZaehler - 1), 60);
+                        }
+                        
+                        var countdown = wartezeit;
+                        var interval = setInterval(function() {
+                            // KLARER DEUTSCHER TEXT MIT RUNTERZÄHLENDEM LIVE-COUNTDOWN
+                            output.innerHTML = "⏳ <strong>Du musst warten.</strong> Die Anfrage wird automatisch nach <strong>" + countdown + " Sekunden</strong> gestartet.";
+                            countdown--;
+                            
+                            if (countdown < 0) {
+                                clearInterval(interval);
+                                sendeBefehl(); // Startet die Anfrage vollautomatisch neu
+                            }
+                        }, 1000);
+                        return;
+                    }
+                    
+                    // WENN SERVICE EINE ANTWORT LIEFERT -> BUTTON WIEDER FREIGEBEN
+                    sendBtn.disabled = false;
+                    sendBtn.style.background = "#ff9f0a";
+                    sendBtn.style.color = "black";
+                    sendBtn.style.cursor = "pointer";
+                    sendBtn.innerText = "🚀 Befehl senden";
+                    
+                    if (xhr.status === 200 && data) {
+                        versuchZaehler = 0;
                         try {
-                            if (data && data.candidates && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0].text) {
+                            if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0].text) {
                                 var rawJsonString = data.candidates[0].content.parts[0].text;
                                 var strukturierteAntwort = JSON.parse(rawJsonString);
                                 if (strukturierteAntwort.agenten_text) {
                                     output.innerHTML = parseMarkdown(strukturierteAntwort.agenten_text);
-                                    if (strukturierteAntwort.kalender_daten) { localStorage.setItem('henry_kalender_json', JSON.stringify(strukturierteAntwort.kalender_daten)); }
-                                    else { localStorage.removeItem('henry_kalender_json'); }
-                                } else { output.innerText = "⚠️ Strukturfehler im Inhalt."; }
-                            } else { output.innerText = "⚠️ Unerwartete Google-Struktur."; }
-                        } catch(err) { output.innerText = "🚨 Strukturfehler: " + err.message; }
-                    } else { output.innerText = "❌ Fehler: " + (data.error ? data.error.message : xhr.responseText); }
-                }
-            };
-            var heute = new Date();
-            var datumsKontext = "Heute ist der: " + heute.toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + ".\n";
-            
-            var systemPrompt = "Du bist die Schaltzentrale von Henrys privater KI-Agenten-Farm. Deine Aufgabe ist es, den Befehl zu analysieren und zu simulieren, wie die Abteilungen (CFO für Finanzen, COO für SmartHome/Kalender, CIO für Wissen) reagieren. Antworte kurz im Namen von [CEO-Agent]. WICHTIGE UHRZEIT-REGEL: Interpretiere Zeitangaben strikt im europäischen 24-Stunden-Format. Wenn der Nutzer '5 Uhr' ohne Zusatz wie 'nachmittags' oder 'abends' sagt, ist das IMMER 05:00 Uhr morgens. '12 Uhr' ist mittags. Gib im JSON-Objekt 'kalender_daten' die Werte für 'start' und 'end' immer als korrekten ISO-Zeitstempel (YYYY-MM-DDTHH:MM:SS) aus.";
-
-            var payload = JSON.stringify({
-                contents: [{ parts: [{ text: datumsKontext + systemPrompt + "\n\nHenrys Befehl: " + prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            agenten_text: { type: "STRING" },
-                            kalender_daten: {
-                                type: "OBJECT",
-                                properties: { titel: { type: "STRING" }, start: { type: "STRING" }, end: { type: "STRING" } },
-                                required: ["titel", "start", "end"]
-                            }
-                        },
-                        required: ["agenten_text"]
-                    }
-                }
-            });
-            xhr.send(payload);
-        }
-    </script>
-</body>
-</html>
