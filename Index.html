@@ -56,7 +56,7 @@
         if(localStorage.getItem('henry_gemini_key')) {
             document.getElementById('apiKey').value = localStorage.getItem('henry_gemini_key');
         }
-        const micBtn = document.getElementById('micBtn');
+                const micBtn = document.getElementById('micBtn');
         const taskInput = document.getElementById('taskInput');
         if ('webkitSpeechRecognition' in window) {
             const recognition = new webkitSpeechRecognition();
@@ -69,7 +69,7 @@
                 micBtn.style.color = "black";
             });
             recognition.onresult = (event) => {
-                taskInput.value = event.results[0][0].transcript;
+                taskInput.value = event.results.transcript;
                 micBtn.innerText = "🎙️ Per Sprache eingeben";
                 micBtn.style.background = "#0a84ff";
                 micBtn.style.color = "white";
@@ -106,7 +106,6 @@
             var xhr = new XMLHttpRequest();
             xhr.open("POST", url, true);
             xhr.setRequestHeader("Content-Type", "application/json");
-            
             xhr.onreadystatechange = function () {
                 if (xhr.readyState === 4) {
                     if (!xhr.responseText || xhr.responseText.trim() === "") { 
@@ -127,8 +126,12 @@
                         versuchZaehler++;
                         var wartezeit = 45; 
                         var treffer = xhr.responseText.match(/retry in\s+([0-9.]+)/i);
-                        if (treffer && treffer) { wartezeit = Math.ceil(parseFloat(treffer[1])); }
-                        else { wartezeit = Math.min(15 * Math.pow(2, versuchZaehler - 1), 60); }
+                        if (treffer && treffer) { 
+                            // ADLER-SICHERHEITSAUFSCHLAG: 15 Sekunden fest aufgeschlagen
+                            wartezeit = Math.ceil(parseFloat(treffer[1])) + 15; 
+                        } else { 
+                            wartezeit = Math.min(15 * Math.pow(2, versuchZaehler - 1), 60) + 15; 
+                        }
                         
                         var countdown = wartezeit;
                         var interval = setInterval(function() {
@@ -151,7 +154,6 @@
                             if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text) {
                                 var rawText = data.candidates[0].content.parts[0].text;
                                 
-                                // INTELLIGENTER FILTER: Trennt reinen Text von verstecktem JSON-Code
                                 var jsonMatch = rawText.match(/\{[\s\S]*\}/);
                                 if (jsonMatch) {
                                     var strukturierteAntwort = JSON.parse(jsonMatch[0]);
@@ -162,7 +164,6 @@
                                         } else { localStorage.removeItem('henry_kalender_json'); }
                                     } else { output.innerText = "⚠️ Strukturfehler im extrahierten JSON."; }
                                 } else {
-                                    // Falls Gemini nur reinen Text ohne JSON liefert
                                     output.innerHTML = parseMarkdown(rawText);
                                     localStorage.removeItem('henry_kalender_json');
                                 }
@@ -182,13 +183,6 @@
                 contents: [{ parts: [{ text: datumsKontext + systemPrompt + "\nNutzer-Befehl: " + prompt }] }]
             };
             xhr.send(JSON.stringify(payload));
-        }
-
-        function kalenderAuslesen(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            document.getElementById('menuDropdown').style.display = 'none';
-            document.getElementById('output').innerText = "⏳ Bereite Auslesen des Kalenders 'Henry' vor...";
         }
     </script>
 </body>
